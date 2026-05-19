@@ -1,0 +1,358 @@
+{
+  "info": {
+    "name": "Tratok Hospitality API",
+    "description": "Provider integration surface for hospitality.tratok.net. Import this collection, then set the `api_key` variable in the collection's Variables tab to your API key (issued from /documentation.php in the provider portal). Every request inherits the X-API-Key header automatically.\n\nFull docs: https://github.com/TratokToken/Hospitality",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "tratok-hospitality-2026-05"
+  },
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      { "key": "key",   "value": "X-API-Key", "type": "string" },
+      { "key": "value", "value": "{{api_key}}", "type": "string" },
+      { "key": "in",    "value": "header", "type": "string" }
+    ]
+  },
+  "variable": [
+    { "key": "base_url",   "value": "https://hospitality.tratok.net/api.php", "type": "string" },
+    { "key": "api_key",    "value": "REPLACE_WITH_YOUR_API_KEY",              "type": "string" },
+    { "key": "property_id", "value": "1", "type": "string" },
+    { "key": "room_id",     "value": "1", "type": "string" },
+    { "key": "booking_id",  "value": "1", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Account",
+      "item": [
+        {
+          "name": "GET me",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}?endpoint=me", "host": ["{{base_url}}"], "query": [ { "key": "endpoint", "value": "me" } ] },
+            "description": "Returns the authenticated provider's profile and rate-limit budget."
+          }
+        },
+        {
+          "name": "POST rotate api_key",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}?endpoint=api_key", "host": ["{{base_url}}"], "query": [ { "key": "endpoint", "value": "api_key" } ] },
+            "description": "Rotates the API key and secret. The OLD key is invalidated immediately."
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "Properties",
+      "item": [
+        {
+          "name": "GET list properties",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}?endpoint=properties&page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "query": [
+                { "key": "endpoint", "value": "properties" },
+                { "key": "page",     "value": "1" },
+                { "key": "limit",    "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET property by id",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}?endpoint=properties&id={{property_id}}",
+              "host": ["{{base_url}}"],
+              "query": [
+                { "key": "endpoint", "value": "properties" },
+                { "key": "id",       "value": "{{property_id}}" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "Rooms",
+      "item": [
+        {
+          "name": "GET rooms for property",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}?endpoint=rooms&property_id={{property_id}}",
+              "host": ["{{base_url}}"],
+              "query": [
+                { "key": "endpoint",    "value": "rooms" },
+                { "key": "property_id", "value": "{{property_id}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET room by id",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}?endpoint=rooms&id={{room_id}}",
+              "host": ["{{base_url}}"],
+              "query": [
+                { "key": "endpoint", "value": "rooms" },
+                { "key": "id",       "value": "{{room_id}}" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "Pricing",
+      "item": [
+        {
+          "name": "GET pricing range",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}?endpoint=pricing&room_id={{room_id}}&from=2026-06-01&to=2026-06-30",
+              "host": ["{{base_url}}"],
+              "query": [
+                { "key": "endpoint", "value": "pricing" },
+                { "key": "room_id",  "value": "{{room_id}}" },
+                { "key": "from",     "value": "2026-06-01" },
+                { "key": "to",       "value": "2026-06-30" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST set single-day price",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"room_id\": {{room_id}},\n  \"date\": \"2026-06-04\",\n  \"price\": 199.00\n}"
+            },
+            "url": { "raw": "{{base_url}}?endpoint=pricing", "host": ["{{base_url}}"], "query": [ { "key": "endpoint", "value": "pricing" } ] }
+          }
+        },
+        {
+          "name": "POST set price range (bulk)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"room_id\": {{room_id}},\n  \"start_date\": \"2026-06-01\",\n  \"end_date\":   \"2026-06-30\",\n  \"price\":      199.00\n}"
+            },
+            "url": { "raw": "{{base_url}}?endpoint=pricing_bulk", "host": ["{{base_url}}"], "query": [ { "key": "endpoint", "value": "pricing_bulk" } ] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "Inventory",
+      "item": [
+        {
+          "name": "GET inventory range",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}?endpoint=inventory&room_id={{room_id}}&from=2026-06-01&to=2026-06-30",
+              "host": ["{{base_url}}"],
+              "query": [
+                { "key": "endpoint", "value": "inventory" },
+                { "key": "room_id",  "value": "{{room_id}}" },
+                { "key": "from",     "value": "2026-06-01" },
+                { "key": "to",       "value": "2026-06-30" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST set single-day inventory",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"room_id\": {{room_id}},\n  \"date\": \"2026-06-04\",\n  \"available\": 5\n}"
+            },
+            "url": { "raw": "{{base_url}}?endpoint=inventory", "host": ["{{base_url}}"], "query": [ { "key": "endpoint", "value": "inventory" } ] }
+          }
+        },
+        {
+          "name": "POST set inventory range (bulk)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"room_id\": {{room_id}},\n  \"start_date\": \"2026-06-01\",\n  \"end_date\":   \"2026-06-30\",\n  \"available\":  5\n}"
+            },
+            "url": { "raw": "{{base_url}}?endpoint=inventory_bulk", "host": ["{{base_url}}"], "query": [ { "key": "endpoint", "value": "inventory_bulk" } ] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "Activities",
+      "item": [
+        {
+          "name": "GET list activities",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}?endpoint=activities&page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "query": [
+                { "key": "endpoint", "value": "activities" },
+                { "key": "page",     "value": "1" },
+                { "key": "limit",    "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET activity by id",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}?endpoint=activities&id=1",
+              "host": ["{{base_url}}"],
+              "query": [
+                { "key": "endpoint", "value": "activities" },
+                { "key": "id",       "value": "1" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "Restaurants",
+      "item": [
+        {
+          "name": "GET list restaurants",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}?endpoint=restaurants&page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "query": [
+                { "key": "endpoint", "value": "restaurants" },
+                { "key": "page",     "value": "1" },
+                { "key": "limit",    "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET restaurant by id",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}?endpoint=restaurants&id=1",
+              "host": ["{{base_url}}"],
+              "query": [
+                { "key": "endpoint", "value": "restaurants" },
+                { "key": "id",       "value": "1" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "Bookings",
+      "item": [
+        {
+          "name": "GET list bookings",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}?endpoint=bookings&page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "query": [
+                { "key": "endpoint", "value": "bookings" },
+                { "key": "page",     "value": "1" },
+                { "key": "limit",    "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET bookings (filter by type + status)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}?endpoint=bookings&type=property&status=confirmed&page=1&limit=50",
+              "host": ["{{base_url}}"],
+              "query": [
+                { "key": "endpoint", "value": "bookings" },
+                { "key": "type",     "value": "property" },
+                { "key": "status",   "value": "confirmed" },
+                { "key": "page",     "value": "1" },
+                { "key": "limit",    "value": "50" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET booking by id",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}?endpoint=bookings&id={{booking_id}}",
+              "host": ["{{base_url}}"],
+              "query": [
+                { "key": "endpoint", "value": "bookings" },
+                { "key": "id",       "value": "{{booking_id}}" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "Revenue",
+      "item": [
+        {
+          "name": "GET revenue (last 30 days)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}?endpoint=revenue", "host": ["{{base_url}}"], "query": [ { "key": "endpoint", "value": "revenue" } ] }
+          }
+        },
+        {
+          "name": "GET revenue (custom range, properties only)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}?endpoint=revenue&from=2026-01-01&to=2026-12-31&type=property",
+              "host": ["{{base_url}}"],
+              "query": [
+                { "key": "endpoint", "value": "revenue" },
+                { "key": "from",     "value": "2026-01-01" },
+                { "key": "to",       "value": "2026-12-31" },
+                { "key": "type",     "value": "property" }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
