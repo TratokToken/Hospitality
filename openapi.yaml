@@ -1,0 +1,500 @@
+openapi: 3.1.0
+info:
+  title: Tratok Hospitality API
+  description: |
+    REST API for service providers on the Tratok platform — hotels, activity
+    operators and restaurants. Read listings, push pricing and inventory,
+    pull bookings and revenue, rotate API keys, subscribe to webhooks.
+
+    Full prose docs: https://github.com/tratok/hospitality-api
+  version: "2026.05"
+  contact:
+    name: Tratok API Support
+    email: api-support@tratok.net
+    url: https://hospitality.tratok.net/documentation.php
+  license:
+    name: MIT (this documentation)
+    url: https://opensource.org/licenses/MIT
+  termsOfService: https://tratok.net/terms.php
+
+servers:
+  - url: https://hospitality.tratok.net
+    description: Production
+
+security:
+  - ApiKeyAuth: []
+
+tags:
+  - name: account
+    description: Caller identity and key rotation.
+  - name: properties
+    description: Accommodation listings.
+  - name: rooms
+    description: Room types within a property.
+  - name: pricing
+    description: Per-date room price.
+  - name: inventory
+    description: Per-date room availability.
+  - name: activities
+    description: Experience listings.
+  - name: restaurants
+    description: Restaurant listings.
+  - name: bookings
+    description: Confirmed and pending reservations.
+  - name: revenue
+    description: Pre-aggregated revenue summary.
+
+paths:
+  /api.php:
+    parameters:
+      - $ref: '#/components/parameters/EndpointQuery'
+
+    get:
+      summary: Dispatch GET to a named endpoint
+      description: |
+        All API operations route through a single PHP entrypoint. The
+        `endpoint` query parameter selects the operation. Method matters —
+        write operations are `POST`, reads are `GET`.
+      operationId: dispatchGet
+      parameters:
+        - in: query
+          name: id
+          schema: { type: integer, minimum: 1 }
+          description: Resource id (varies per endpoint).
+        - in: query
+          name: property_id
+          schema: { type: integer, minimum: 1 }
+          description: Used by `rooms` for list-by-property.
+        - in: query
+          name: room_id
+          schema: { type: integer, minimum: 1 }
+          description: Used by `pricing` and `inventory`.
+        - in: query
+          name: from
+          schema: { type: string, format: date }
+          description: Date-window start (used by pricing, inventory, revenue).
+        - in: query
+          name: to
+          schema: { type: string, format: date }
+          description: Date-window end (inclusive).
+        - in: query
+          name: type
+          schema: { type: string, enum: [property, activity, restaurant] }
+          description: Booking/revenue type filter.
+        - in: query
+          name: status
+          schema: { type: string, enum: [pending, confirmed, cancelled, completed, no_show] }
+          description: Bookings filter.
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - $ref: '#/components/schemas/PaginatedEnvelope'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+    post:
+      summary: Dispatch POST to a write endpoint
+      description: |
+        Used by `pricing`, `pricing_bulk`, `inventory`, `inventory_bulk`,
+        and `api_key`. Body is JSON (preferred) or form-encoded.
+      operationId: dispatchPost
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/PricingWriteBody'
+                - $ref: '#/components/schemas/PricingBulkWriteBody'
+                - $ref: '#/components/schemas/InventoryWriteBody'
+                - $ref: '#/components/schemas/InventoryBulkWriteBody'
+                - type: object
+                  description: api_key rotation has no body.
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+    options:
+      summary: CORS preflight
+      operationId: corsPreflight
+      responses:
+        '204':
+          description: No content; CORS headers attached.
+
+components:
+
+  parameters:
+    EndpointQuery:
+      in: query
+      name: endpoint
+      required: true
+      schema:
+        type: string
+        enum:
+          - me
+          - properties
+          - rooms
+          - pricing
+          - pricing_bulk
+          - inventory
+          - inventory_bulk
+          - activities
+          - restaurants
+          - bookings
+          - revenue
+          - api_key
+      description: Selects the operation. Required on every call.
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: |
+        Issued from `/documentation.php` in the hospitality portal.
+        Query-string keys are NOT accepted. See docs/authentication.md.
+
+  responses:
+    BadRequest:
+      description: Validation error.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Unauthorized:
+      description: Missing or invalid API key.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    NotFound:
+      description: Endpoint or resource not found.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    MethodNotAllowed:
+      description: Wrong HTTP method for this endpoint.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    RateLimited:
+      description: Per-key request quota exceeded.
+      headers:
+        Retry-After:
+          schema: { type: integer }
+          description: Seconds to wait before retrying.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    ServerError:
+      description: Unexpected server fault.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  schemas:
+
+    # ─── Envelopes ───────────────────────────────────────────────
+    SuccessEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          description: Shape varies per endpoint.
+          oneOf:
+            - type: object
+            - type: array
+              items: { type: object }
+
+    PaginatedEnvelope:
+      type: object
+      required: [success, data, pagination]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: array
+          items: { type: object }
+        pagination: { $ref: '#/components/schemas/Pagination' }
+
+    ErrorEnvelope:
+      type: object
+      required: [success, error]
+      properties:
+        success: { type: boolean, enum: [false] }
+        error:   { type: string }
+
+    Pagination:
+      type: object
+      required: [total, page, limit, pages]
+      properties:
+        total: { type: integer }
+        page:  { type: integer }
+        limit: { type: integer }
+        pages: { type: integer }
+
+    # ─── Resource schemas ────────────────────────────────────────
+    Me:
+      type: object
+      properties:
+        id:             { type: integer }
+        name:           { type: string }
+        email:          { type: string, format: email }
+        company:        { type: string }
+        country:        { type: string }
+        city:           { type: string }
+        email_verified: { type: boolean }
+        api_rate_limit: { type: integer }
+        member_since:   { type: string, example: "2025-01-15 10:30:00" }
+
+    PropertyListItem:
+      type: object
+      properties:
+        id:          { type: integer }
+        name:        { type: string }
+        city:        { type: string }
+        country:     { type: string }
+        picture:     { type: string }
+        approved:    { type: boolean }
+        deactivated: { type: boolean }
+        views:       { type: integer }
+        bookings:    { type: integer }
+        rating:      { type: number, format: float, minimum: 0, maximum: 5 }
+        created_at:  { type: string }
+
+    Property:
+      allOf:
+        - $ref: '#/components/schemas/PropertyListItem'
+        - type: object
+          properties:
+            description:       { type: string }
+            address:           { type: string }
+            number:            { type: string }
+            maps:              { type: string, description: '"lat, lng" — comma-and-space separated.' }
+            reservationsEmail: { type: string, format: email, nullable: true }
+            updated_at:        { type: string, nullable: true }
+
+    RoomListItem:
+      type: object
+      properties:
+        id:            { type: integer }
+        name:          { type: string }
+        description:   { type: string }
+        price:         { type: number, format: float }
+        currency:      { type: string }
+        numberOfRooms: { type: integer }
+        maxCapacity:   { type: integer }
+        image:         { type: string }
+        deactivated:   { type: boolean }
+        created_at:    { type: string }
+
+    Room:
+      allOf:
+        - $ref: '#/components/schemas/RoomListItem'
+        - type: object
+          properties:
+            property_id: { type: integer }
+            amenities:   { type: string }
+            updated_at:  { type: string, nullable: true }
+
+    PriceRow:
+      type: object
+      properties:
+        date:  { type: string, format: date }
+        price: { type: number, format: float }
+
+    InventoryRow:
+      type: object
+      properties:
+        date:      { type: string, format: date }
+        available: { type: integer, minimum: 0 }
+
+    ActivityListItem:
+      type: object
+      properties:
+        id:          { type: integer }
+        name:        { type: string }
+        category:    { type: string }
+        price:       { type: number, format: float }
+        currency:    { type: string }
+        city:        { type: string }
+        country:     { type: string }
+        picture:     { type: string }
+        approved:    { type: boolean }
+        deactivated: { type: boolean }
+        created_at:  { type: string }
+
+    Activity:
+      allOf:
+        - $ref: '#/components/schemas/ActivityListItem'
+        - type: object
+          properties:
+            description:      { type: string }
+            duration_hours:   { type: integer }
+            max_participants: { type: integer }
+            address:          { type: string }
+            maps:             { type: string }
+            contact_email:    { type: string, format: email }
+            contact_phone:    { type: string }
+            views:            { type: integer }
+            bookings:         { type: integer }
+            rating:           { type: number, format: float }
+
+    RestaurantListItem:
+      type: object
+      properties:
+        id:           { type: integer }
+        name:         { type: string }
+        cuisine_type: { type: string }
+        city:         { type: string }
+        country:      { type: string }
+        picture:      { type: string }
+        price_range:  { type: string, enum: ['$', '$$', '$$$', '$$$$'] }
+        approved:     { type: boolean }
+        deactivated:  { type: boolean }
+        created_at:   { type: string }
+
+    Restaurant:
+      allOf:
+        - $ref: '#/components/schemas/RestaurantListItem'
+        - type: object
+          properties:
+            description:   { type: string }
+            address:       { type: string }
+            number:        { type: string }
+            maps:          { type: string }
+            contact_email: { type: string, format: email }
+            views:         { type: integer }
+            bookings:      { type: integer }
+            rating:        { type: number, format: float }
+
+    Booking:
+      type: object
+      properties:
+        id:                 { type: integer }
+        provider_id:        { type: integer }
+        user_id:            { type: integer }
+        booking_type:       { type: string, enum: [property, activity, restaurant] }
+        source_id:          { type: integer }
+        room_id:            { type: integer, nullable: true }
+        package_id:         { type: integer, nullable: true }
+        guest_name:         { type: string }
+        guest_email:        { type: string, format: email }
+        guest_phone:        { type: string, nullable: true }
+        check_in:           { type: string, format: date }
+        check_out:          { type: string, format: date, nullable: true }
+        guests:             { type: integer }
+        booking_time:       { type: string, nullable: true, description: HH:MM for restaurants. }
+        notes:              { type: string, nullable: true }
+        status:
+          type: string
+          enum: [pending, pending_payment, confirmed, cancelled, completed, no_show, payment_expired]
+        total_price:        { type: number, format: float }
+        currency:           { type: string }
+        total_trat:         { type: number, format: double }
+        bonus_amount:       { type: number, format: double }
+        onchain_amount:     { type: number, format: double }
+        tx_hash:            { type: string, nullable: true }
+        payment_expires_at: { type: string, nullable: true }
+        created_at:         { type: string }
+        confirmed_at:       { type: string, nullable: true }
+        completed_at:       { type: string, nullable: true }
+        cancelled_at:       { type: string, nullable: true }
+
+    Revenue:
+      type: object
+      properties:
+        period:
+          type: object
+          properties:
+            from: { type: string, format: date }
+            to:   { type: string, format: date }
+        totals:
+          type: object
+          properties:
+            gross_revenue:   { type: number, format: float }
+            net_revenue:     { type: number, format: float }
+            total_bookings:  { type: integer }
+            avg_per_booking: { type: number, format: float }
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              period_date:    { type: string, format: date }
+              source_type:    { type: string, enum: [property, activity, restaurant] }
+              source_id:      { type: integer }
+              gross_revenue:  { type: number, format: float }
+              net_revenue:    { type: number, format: float }
+              booking_count:  { type: integer }
+
+    ApiKeyResponse:
+      type: object
+      properties:
+        api_key:    { type: string, description: 64-char hex. }
+        api_secret: { type: string, description: 128-char hex. }
+        message:    { type: string }
+
+    # ─── Write bodies ────────────────────────────────────────────
+    PricingWriteBody:
+      type: object
+      required: [room_id, date, price]
+      properties:
+        room_id: { type: integer, minimum: 1 }
+        date:    { type: string, format: date }
+        price:   { type: number, format: float, minimum: 0 }
+
+    PricingBulkWriteBody:
+      type: object
+      required: [room_id, start_date, end_date, price]
+      properties:
+        room_id:    { type: integer, minimum: 1 }
+        start_date: { type: string, format: date }
+        end_date:   { type: string, format: date }
+        price:      { type: number, format: float, minimum: 0 }
+
+    InventoryWriteBody:
+      type: object
+      required: [room_id, date, available]
+      properties:
+        room_id:   { type: integer, minimum: 1 }
+        date:      { type: string, format: date }
+        available: { type: integer, minimum: 0 }
+
+    InventoryBulkWriteBody:
+      type: object
+      required: [room_id, start_date, end_date, available]
+      properties:
+        room_id:    { type: integer, minimum: 1 }
+        start_date: { type: string, format: date }
+        end_date:   { type: string, format: date }
+        available:  { type: integer, minimum: 0 }
+
+# Note: OpenAPI's path-by-method model doesn't natively express a single
+# entrypoint dispatched on a query parameter. This spec models the
+# transport accurately (one path, GET + POST + OPTIONS) and uses the
+# `endpoint` query parameter + the variant write bodies as the operation
+# selector. Code generators will produce a single `dispatchGet` /
+# `dispatchPost` client method that callers supply `endpoint=...` to.
+# For an SDK with one method per logical operation, prefer the
+# hand-written clients in examples/{python,node,php}/.
