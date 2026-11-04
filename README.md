@@ -154,7 +154,7 @@ Working examples for every endpoint in **[PHP](examples/php)**, **[Node.js](exam
 - **Provider Portal**: [hospitality.tratok.net](https://hospitality.tratok.net)
 - **Main website**: [tratok.net](https://tratok.net)
 - **Developer API** (for data queries, not provider management): [developer.tratok.net](https://developer.tratok.net) → [TratokToken/tratok-labs](https://github.com/TratokToken/tratok-labs)
-- **Information hub**: [tratok.info](https://tratok.info)
+- **Information hub**: [info.tratok.com](https://info.tratok.com)
 - **Twitter / X**: [@TratokT](https://x.com/TratokT)
 - **LinkedIn**: [Tratok Holding Limited](https://www.linkedin.com/company/tratok-ltd/)
 - **Issues & feature requests**: open an issue in this repo
